@@ -1,0 +1,110 @@
+<!doctype html>
+<html class='use-all-space'>
+    <head>
+        <meta charset='utf-8'>
+        <meta http-equiv='X-UA-Compatible' content='IE=Edge'/>
+        <title>SWK@TomTom - Kafka-Demo</title>
+        <link rel='apple-touch-icon' href='favicon.png'>
+        <meta name='viewport' content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no'/>
+        <link rel='stylesheet' type='text/css' href='sdk/map.css'/>
+        <link rel='stylesheet' type='text/css' href='elements.css'/>
+        <link rel='stylesheet' type='text/css' href='css/main.css'/>
+        <script type='text/javascript' src='sdk/tomtom.min.js'></script>
+        <script type='text/javascript' src='js/sockjs-0.3.4.min.js'></script>
+    </head>
+    <body class='use-all-space'>
+        <div id='form'>
+            <form>
+                <div>
+                    <label for="account">Account:</label>
+                    <select id="account">
+                        <option value="263" selected="selected">A - 3 units</option>
+                        <option value="285">B - 6 units</option>
+                        <option value="296">C - 5 units</option>
+                    </select>
+                    <label for="connect">WebSocket:</label>
+                    <button id="connect" type="submit">Connect</button>
+                    <button id="disconnect" type="submit">Disconnect</button>
+                </div>
+            </form>
+        </div>
+        <div id='map'></div>
+        <script>
+            var markerMap = {};
+            var markerOptions = {
+                icon: tomtom.L.svgIcon({
+                    icon: {
+                        icon: 'fa icon-ic_map_poi_008-white', // white car
+                        iconSize: [32, 37],
+                        iconAnchor: [1, 2], //16,2
+                        style: {
+                            color: '#fff'
+                        },
+                        noPlainSVG: true
+                    }
+                })
+            };
+            tomtom.setProductInfo('map-for-swk-kafka-demo', '1.0');
+            tomtom.key('### insert API KEY here ###');
+            var map = tomtom.map('map', {
+                minZoom: 11,
+                maxZoom: 16,
+                zoom: 13,
+                maxBounds: [[50.9821, 11.5088], [51.8290, 13.4400]],
+                center: [51.341414, 12.391162],
+                key: '### insert API KEY here ###',
+                source: 'vector',
+                basePath: '/sdk'
+            });
+            var markers = tomtom.L.markerClusterGroup();
+            map.addLayer(markers);
+
+            document.getElementById('disconnect').disabled = true;
+            document.getElementById('form').addEventListener('submit', function(e) {
+                e.preventDefault();
+            });
+            setConnected = function(connected) {
+                document.getElementById('account').disabled = connected;
+                document.getElementById('connect').disabled = connected;
+                document.getElementById('disconnect').disabled = !connected;
+            };
+            var socket;
+            document.getElementById('connect').addEventListener('click', function() {
+                socket = new SockJS('/trackEntry');
+                setConnected(true);
+                for (var marker in markerMap) {
+                    console.log("remove unit " + marker);
+                    markerMap[marker].removeFrom(markers);
+                    markerMap[marker] = null;
+                }
+                socket.onopen = function() {
+                    var accountId = document.getElementById("account").value;
+                    socket.send('start accountId ' + accountId + ' timeZoneOffset ' + new Date().getTimezoneOffset());
+                    setInterval(function() {
+                        socket.send('ping');
+                    }, 20000);
+                };
+                socket.onmessage = function (message) {
+                    // using eval is INSECURE!, switch to json lib for parsing in production
+                    var json = eval('(' + message.data + ')');
+                    if (json.unitId in markerMap) {
+                        markerMap[json.unitId].setLatLng(tomtom.L.latLng(json.latitude, json.longitude))
+                    } else {
+                        console.log("add unit " + json.unitId);
+                        markerMap[json.unitId] = tomtom.L.marker([json.latitude, json.longitude], markerOptions);
+                        markers.addLayer(markerMap[json.unitId]);
+                    }
+                    if ('text' in json) {
+                        markerMap[json.unitId].bindPopup(json.text, {permanent:true}).openPopup();
+                    } else {
+                        markerMap[json.unitId].closePopup();
+                    }
+                };
+            });
+            document.getElementById('disconnect').addEventListener('click', function() {
+                socket.close();
+                setConnected(false);
+            });
+        </script>
+    </body>
+</html>

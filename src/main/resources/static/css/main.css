@@ -1,0 +1,16 @@
+body {
+    display: flex;
+    flex-flow: column;
+}
+#form {
+    flex: 0 1 auto;
+    margin: 2px 5px;
+}
+#map {
+    flex: 1 1 auto;
+}
+form div {
+    display: inline-block;
+    margin-bottom: 0;
+    vertical-align: middle;
+}

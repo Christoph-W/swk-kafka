@@ -1,0 +1,54 @@
+plugins {
+//    id "org.springframework.boot" version "1.5.15.RELEASE"
+    id "org.springframework.boot" version "2.0.5.RELEASE"
+    id "eclipse"
+    id "idea"
+    id "io.spring.dependency-management" version "1.0.6.RELEASE"
+    id "java"
+    id "maven"
+    id "com.github.johnrengelman.shadow" version "2.0.4"
+}
+
+repositories {
+    jcenter()
+    mavenCentral()
+}
+
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
+
+configurations {
+    compile.exclude module: 'spring-boot-starter-tomcat'
+}
+
+dependencies {
+    compile 'org.springframework.boot:spring-boot-autoconfigure'
+    compile 'org.springframework.boot:spring-boot-starter-web'
+    compile 'org.springframework.boot:spring-boot-starter-jetty'
+    compile 'org.springframework.boot:spring-boot-starter-websocket'
+
+    compile 'org.springframework.kafka:spring-kafka'
+    compile 'org.apache.kafka:kafka-streams:1.0.2'
+
+    compile 'com.fasterxml.jackson.core:jackson-databind'
+    runtime 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml'
+
+    compile 'org.slf4j:jcl-over-slf4j'
+    runtime 'ch.qos.logback:logback-classic'
+
+    compile 'org.apache.commons:commons-collections4:4.2'
+    compile 'name.falgout.jeffrey:throwing-streams:3.2.0'
+
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.assertj:assertj-core:3.11.0'
+}
+
+springBoot {
+    mainClassName = 'org.swk.track.map.ServerApplication'
+}
+
+bootRun {
+    if (project.hasProperty('args')) {
+        args project.args.split(',')
+    }
+}

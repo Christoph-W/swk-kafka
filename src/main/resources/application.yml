@@ -1,0 +1,19 @@
+map:
+  source:
+    topic:
+
+app:
+  topic: tracking_${user.name:}
+
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+
+logging:
+  file: logs/swk.log
+  pattern:
+    console: "%d %-5level %logger : %msg%n"
+    file: "%d %-5level [%thread] %logger : %msg%n"
+  level:
+    org.springframework.web: WARN
+    org.swk: DEBUG
