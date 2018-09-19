@@ -18,7 +18,15 @@ package org.swk.track.consumer;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.serialization.LongDeserializer;
+import org.swk.track.data.TrackEntry;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -27,7 +35,7 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * Exercise: Consumer
+ * Example solution for exercise: Consumer
  * <p>
  * Consume track entries from a topic.<br/>
  * Using the same or a different groupID can be used to consume in parallel or to broadcast the topics content.
@@ -39,20 +47,28 @@ public class TrackEntryJsonConsumerApplication {
     public static void main(final String[] args) {
         final String topic = "tracking_" + System.getProperty("user.name", "");
 
-        // TODO define class for key and payload
-        // try (final KafkaConsumer<..., ...> consumer = new KafkaConsumer<>(getConsumerConfig())) {
-        //     consumer.subscribe(Collections.singleton(topic));
-            // TODO poll from subscribed topics
-        // }
+        try (final KafkaConsumer<Long, TrackEntry> consumer = new KafkaConsumer<>(getConsumerConfig())) {
+            long count = 0;
+            consumer.subscribe(Collections.singleton(topic));
+            while (true) {
+                final ConsumerRecords<Long, TrackEntry> poll = consumer.poll(TimeUnit.MINUTES.toMillis(5));
+                if (poll.isEmpty()) {
+                    break;
+                }
+                count += poll.count();
+            }
+            LOG.info("Read {} track entries", count);
+            consumer.metrics().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey(Comparator.comparing(MetricName::name)))
+                .forEach(e -> LOG.info("{} :{} ({})", e.getValue().metricValue(), e.getKey().name(), e.getKey().description()));
+        }
     }
 
     private static Properties getConsumerConfig() {
         final Properties props = new Properties();
-        // TODO check bootstrap server config
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        // TODO add key and value deserializer (the JsonDeserializer needs a target type)
-        // props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ....class);
-        // props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ....class);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, LongDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, TrackEntryJsonDeserializer.class);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, getGroupId());
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         return props;
@@ -61,7 +77,7 @@ public class TrackEntryJsonConsumerApplication {
     private static String getGroupId() {
         try {
             return System.getProperty("user.name") + "@" + InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException e) {
+        } catch (final UnknownHostException e) {
             LOG.warn(e.getLocalizedMessage());
             return System.getProperty("user.name");
         }
